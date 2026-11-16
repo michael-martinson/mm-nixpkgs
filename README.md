@@ -9,7 +9,7 @@ the consuming flake instead.
 ## Structure
 
 ```
-flake.nix               inputs: nixpkgs, home-manager, determinate. Outputs below.
+flake.nix               inputs: nixpkgs, home-manager. Outputs below.
 library/default.nix      defaultSystems, defaultShellPackages, fishShellInit,
                          modulesFromDirectoryRecursive
 overlays/
@@ -37,7 +37,6 @@ legacy-packages/default.nix   nixpkgs with overlays.default applied, per system
 | `ai` | `mm.ai` | nothing extra - writes `./ai/AGENTS.md` to `~/.ai/AGENTS.md` via `systemd.tmpfiles`, no home-manager |
 | `user` | `mm.user` | the account, fonts, fish, direnv, editor, nix-ld, and git identity for one user, named by `mm.user.username` |
 | `homeManager` | - | re-exports `home-manager.nixosModules.home-manager`, so a consumer does not need its own home-manager input. Only needed if you turn on `mm.user.homeManager.enable`, which gives that user a home-manager profile (`extraConfig` merges into `home-manager.users.<username>`, for a shared home structure/packages/dotfiles) |
-| `determinate` | - | re-exports `determinate.nixosModules.default` ([DeterminateSystems/determinate](https://github.com/DeterminateSystems/determinate)), so a consumer does not need its own input. Nothing here turns it on - import it and set `determinate.enable = true` (the module's own default) if you want it |
 
 Any module that sets `home-manager.*` or `sops.*` (even inside `mkIf`) needs that
 namespace declared somewhere in the system, regardless of whether the option
@@ -86,24 +85,24 @@ you wiring home-manager up yourself. If you do not need per-user files or
 packages beyond what `mm.user` already gives you (the system account, fonts,
 fish, git identity), you do not need this at all.
 
-## Determinate Nix (`determinate`)
+## Why not Determinate Nix
 
-[Determinate Nix](https://github.com/DeterminateSystems/determinate) is
-DeterminateSystems' Nix distribution: it replaces the `nix` package with
-their build (run through `determinate-nixd`), and gives NixOS a module that
-manages `/etc/nix/nix.custom.conf` for you. The appeal is a more polished,
-actively maintained install than some of the rough edges in the stock
-multi-user Nix installer and daemon, plus their FlakeHub-backed extras
-(pinned nixpkgs releases, a flake registry). The cost is a vendored daemon
-and installer you are trusting instead of upstream Nix - plain Nix works
-fine, and some people prefer not to add that dependency.
-
-Some organizations standardize on it and require it for working with their
-infrastructure - that is a machine- or employer-specific reason to turn it
-on, which is why it lives here only as an available-but-unused re-export, not
-something any `mm.*` module turns on for you. See
-[mm-nixos-anduril's README](https://github.com/michael-martinson/mm-nixos-anduril#why-determinate-nix)
-for a concrete case of why a consumer might require it.
+[Determinate Nix](https://github.com/DeterminateSystems/determinate) was
+briefly re-exported here the same way as `homeManager`, then removed. The
+module itself (replacing the `nix` package with `determinate-nixd`) is
+generic enough, but it is not separable from Determinate's own curated,
+weekly-tested nixpkgs pin, which is what most of its value actually is -
+[mm-nixos-anduril](https://github.com/michael-martinson/mm-nixos-anduril#why-determinate-nix)
+rides on exactly that pin, via `nixpkgs.follows = "determinate/nixpkgs"` on
+its own `determinate` input. Re-exporting just the module here, on this
+repo's own plain `nixpkgs`, strips that pin away; a consumer using the
+re-export would get Determinate's daemon on a nixpkgs revision Determinate
+never tested it against. Switching mm-nixos-anduril over to the re-export
+to deduplicate the input proved this isn't theoretical: it broke a real
+package build (`teleport`, a Go unicode-table version mismatch) that
+plain, floating `nixos-unstable` HEAD has today and Determinate's pin does
+not. If a consumer wants Determinate, it should keep its own `determinate`
+input, for the nixpkgs pin as much as the module.
 
 ## Using it from another flake
 
