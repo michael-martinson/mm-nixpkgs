@@ -9,7 +9,7 @@ the consuming flake instead.
 ## Structure
 
 ```
-flake.nix               inputs: nixpkgs, home-manager. Outputs below.
+flake.nix               inputs: nixpkgs, home-manager, determinate. Outputs below.
 library/default.nix      defaultSystems, defaultShellPackages, fishShellInit,
                          modulesFromDirectoryRecursive
 overlays/
@@ -37,6 +37,7 @@ legacy-packages/default.nix   nixpkgs with overlays.default applied, per system
 | `ai` | `mm.ai` | nothing extra - writes `./ai/AGENTS.md` to `~/.ai/AGENTS.md` via `systemd.tmpfiles`, no home-manager |
 | `user` | `mm.user` | the account, fonts, fish, direnv, editor, nix-ld, and git identity for one user, named by `mm.user.username` |
 | `homeManager` | - | re-exports `home-manager.nixosModules.home-manager`, so a consumer does not need its own home-manager input. Only needed if you turn on `mm.user.homeManager.enable`, which gives that user a home-manager profile (`extraConfig` merges into `home-manager.users.<username>`, for a shared home structure/packages/dotfiles) |
+| `determinate` | - | re-exports `determinate.nixosModules.default` ([DeterminateSystems/determinate](https://github.com/DeterminateSystems/determinate)), so a consumer does not need its own input. Nothing here turns it on - import it and set `determinate.enable = true` (the module's own default) if you want it |
 
 Any module that sets `home-manager.*` or `sops.*` (even inside `mkIf`) needs that
 namespace declared somewhere in the system, regardless of whether the option
