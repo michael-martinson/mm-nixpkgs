@@ -68,6 +68,43 @@ Needs `services.openssh.enable = true` (for the host key to exist) and
 for a full worked example: encrypting a file, adding a machine's age key,
 and turning on a token.
 
+## home-manager (`homeManager`)
+
+[home-manager](https://github.com/nix-community/home-manager) manages the
+files in one user's home directory - dotfiles, `~/.config/*`, a per-user
+package set - declaratively, the same way NixOS manages `/etc` and
+`/nix/var`. NixOS options are for the whole machine; some things are
+inherently per-user instead (an AI tool's settings file, your shell config,
+packages you want but do not want to pollute `environment.systemPackages`
+with). home-manager is the standard way to manage those from the same Nix
+language and toolchain, with its own generations and rollback.
+
+`mm.user.homeManager` is this module's own use of it: enable it on a `mm.user`
+entry and that user gets a home-manager profile (`extraConfig` merges into
+`home-manager.users.<username>`) alongside their system account, instead of
+you wiring home-manager up yourself. If you do not need per-user files or
+packages beyond what `mm.user` already gives you (the system account, fonts,
+fish, git identity), you do not need this at all.
+
+## Determinate Nix (`determinate`)
+
+[Determinate Nix](https://github.com/DeterminateSystems/determinate) is
+DeterminateSystems' Nix distribution: it replaces the `nix` package with
+their build (run through `determinate-nixd`), and gives NixOS a module that
+manages `/etc/nix/nix.custom.conf` for you. The appeal is a more polished,
+actively maintained install than some of the rough edges in the stock
+multi-user Nix installer and daemon, plus their FlakeHub-backed extras
+(pinned nixpkgs releases, a flake registry). The cost is a vendored daemon
+and installer you are trusting instead of upstream Nix - plain Nix works
+fine, and some people prefer not to add that dependency.
+
+Some organizations standardize on it and require it for working with their
+infrastructure - that is a machine- or employer-specific reason to turn it
+on, which is why it lives here only as an available-but-unused re-export, not
+something any `mm.*` module turns on for you. See
+[mm-nixos-anduril's README](https://github.com/michael-martinson/mm-nixos-anduril#why-determinate-nix)
+for a concrete case of why a consumer might require it.
+
 ## Using it from another flake
 
 ```nix
