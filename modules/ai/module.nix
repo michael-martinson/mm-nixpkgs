@@ -1,8 +1,27 @@
 /*
   Shared AI agent setup for one user:
 
-  - mm.ai.enable writes ./AGENTS.md to ~/.ai/AGENTS.md. Plain NixOS, no
-    home-manager required.
+  - mm.ai.enable writes ./AGENTS.md to ~/.ai/AGENTS.md, then symlinks it into
+    every agent tool's own global-instructions spot, so the same rules apply
+    regardless of which tool(s) are actually installed (by this module, by
+    mm.anduril.*, or anything else) - that is independent of mm.ai.claude/
+    mm.ai.pi below, which only control whether this module installs the
+    tool itself. Confirmed by reading each tool's own source/docs, except
+    Codex (see its entry below):
+      ~/.claude/CLAUDE.md               Claude Code
+      ~/.codex/AGENTS.md                Codex
+      ~/.config/opencode/AGENTS.md      OpenCode (which also already checks
+                                         ~/.claude/CLAUDE.md itself, so the
+                                         two can double up there - harmless,
+                                         just repeats the same short file)
+      ~/.pi/agent/AGENTS.md             Pi
+    Codex's path is inferred, not directly observed: its binary contains
+    the literal string "Failed to read global AGENTS.md instructions from
+    `", proving the feature exists, and ~/.codex is its documented
+    CODEX_HOME default - but tracing an actual run to see the exact path
+    it probed led to a real, unintended request to the OpenAI API, so that
+    was stopped short rather than pushed further to pin down one path.
+    Plain NixOS, no home-manager required for this part.
   - mm.ai.claude.enable and mm.ai.pi.enable turn on Claude Code and/or Pi
     (pi.dev), independently. claude needs home-manager (for example
     inputs.mm-nixpkgs.nixosModules.homeManager) - home-manager.* must be
@@ -152,6 +171,20 @@ in
       systemd.tmpfiles.rules = [
         "d /home/${cfg.username}/.ai 0755 ${cfg.username} users -"
         "L+ /home/${cfg.username}/.ai/AGENTS.md - - - - /etc/mm-ai/AGENTS.md"
+
+        "d /home/${cfg.username}/.claude 0755 ${cfg.username} users -"
+        "L+ /home/${cfg.username}/.claude/CLAUDE.md - - - - /etc/mm-ai/AGENTS.md"
+
+        "d /home/${cfg.username}/.codex 0755 ${cfg.username} users -"
+        "L+ /home/${cfg.username}/.codex/AGENTS.md - - - - /etc/mm-ai/AGENTS.md"
+
+        "d /home/${cfg.username}/.config 0755 ${cfg.username} users -"
+        "d /home/${cfg.username}/.config/opencode 0755 ${cfg.username} users -"
+        "L+ /home/${cfg.username}/.config/opencode/AGENTS.md - - - - /etc/mm-ai/AGENTS.md"
+
+        "d /home/${cfg.username}/.pi 0755 ${cfg.username} users -"
+        "d /home/${cfg.username}/.pi/agent 0755 ${cfg.username} users -"
+        "L+ /home/${cfg.username}/.pi/agent/AGENTS.md - - - - /etc/mm-ai/AGENTS.md"
       ];
     })
 

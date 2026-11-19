@@ -74,7 +74,12 @@ and turning on a token.
 
 ```nix
 mm.ai = {
-  enable = true;        # ships ./ai/AGENTS.md to ~/.ai/AGENTS.md (systemd.tmpfiles, no home-manager)
+  enable = true;        # ships ./ai/AGENTS.md to ~/.ai/AGENTS.md, then symlinks it into every
+                         # agent tool's own global-instructions spot (systemd.tmpfiles, no
+                         # home-manager): ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md,
+                         # ~/.config/opencode/AGENTS.md, ~/.pi/agent/AGENTS.md. Independent of
+                         # claude.enable/pi.enable below - applies regardless of how (or whether,
+                         # via this module) a given tool is actually installed.
   username = "mmartinson";
 
   claude.enable = true; # Claude Code, generically, via home-manager - no gateway, no API key wiring
@@ -88,6 +93,14 @@ mm.ai = {
   };
 };
 ```
+
+The four symlink targets were confirmed by reading each tool's own source or docs - OpenCode's
+`instruction-discovery.ts`/`config/discovery.ts`, Pi's `configuration.md` - except Codex, inferred
+from a confirmed string in its binary (`"Failed to read global AGENTS.md instructions from \`"`)
+plus its documented `CODEX_HOME` default, not directly observed: tracing an actual run far enough
+to see the exact path it probed led to a real, unintended request to the OpenAI API, so that was
+stopped short rather than pushed further for one path. OpenCode also already checks
+`~/.claude/CLAUDE.md` itself, so the two can end up loading the same short file twice - harmless.
 
 `claude.enable` is a plain, generic `programs.claude-code.enable = true` - no Anduril gateway,
 no API key helper. A consumer with its own gateway-specific module (`mm.anduril.claude-code` in
