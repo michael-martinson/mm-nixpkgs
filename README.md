@@ -20,7 +20,7 @@ overlays/
 packages/                 every folder here becomes pkgs.<name> - add a package
                          by adding a folder, nothing to wire up in overlays/
   pi/                    our own pi.dev package - see its own header comment
-  mm-notify/             notifies on an AI agent being done or needing input
+  mm-notify/             generic "send a message somewhere" CLI, wraps apprise
 modules/
   default.nix            exports each top-level folder as nixosModules.<name>,
                          plus nixosModules.default (everything, recursively)
@@ -135,10 +135,9 @@ mm.ai = {
   pi.enable = true;      # turns on mm.pi (below) for mm.ai.username
 
   notifications = {      # passed down to mm.claude/mm.pi when claude.enable/pi.enable is set
-    claudePush.enable = true;  # Claude's own mobile push (Claude only, needs the mobile app linked)
-    ntfy = { enable = true; topic = "..."; };          # any backend(s) can combine
-    pushover = { enable = true; userKeyCommand = [ "..." ]; apiTokenCommand = [ "..." ]; };
-    command = "...";                                    # arbitrary shell command, run with the message as $1
+    claudePush.enable = true;       # Claude's own mobile push (Claude only, needs the mobile app linked)
+    urlsCommand = [ "..." ];        # command printing one apprise URL per line - Slack, Discord, email, SMS, ...
+    command = "...";                # arbitrary extra shell command, run with the message as $1
   };
 };
 ```
@@ -195,23 +194,31 @@ configured in that test).
 
 ### Notifications (shared by `mm.claude`, `mm.pi`, and `mm.ai`)
 
-The `notifications` option shape (`ntfy`/`pushover`/`command`, plus
+`packages/mm-notify` is a generic "send a message somewhere" package, not
+specific to AI agents - it wraps
+[apprise](https://github.com/caronc/apprise), which alone covers every
+channel asked for (Slack, Discord, email, and real SMS gateways like
+Twilio/Vonage/MessageBird, vs.
+[shoutrrr](https://github.com/containrrr/shoutrrr), which has no SMS
+support - confirmed by actually building and running both `apprise
+--details` and `shoutrrr docs` from this repo's own `legacyPackages`
+rather than trusting either's docs alone), plus an arbitrary extra
+command. It takes a message and, via `--urls-command`, a command that
+prints one apprise URL per line - not plain option values, so credentials
+never land in the Nix store (same reasoning as
+[secrets](#secrets-mmsecrets) below, and the same pattern as
+`mm.anduril.ai.bearerCommand` in mm-nixos-anduril) - and/or `--command`,
+an arbitrary extra shell command run with the message as `$1`.
+
+The `notifications` option shape (`urlsCommand`/`command`, plus
 `claudePush` on `mm.claude`/`mm.ai`) lives once in `library/default.nix`
-(`notificationOptions`), not duplicated per module. The actual dispatching
-is `packages/mm-notify` - a real package (see "Conventions"), configured
-per invocation by flags, not baked in at build time or read from global
-state - so `mm.claude` and `mm.pi` can each use different settings without
-fighting over the same environment variable. `library/default.nix`'s
-`mkNotifyCommand` builds the flag string for a resolved `notifications`
-value; `hasScriptNotify` says whether any script-driven backend is on (as
-opposed to `claudePush`, which is not). Every backend can be turned on
-independently - enabling more than one fires all of them.
-`pushover.userKeyCommand`/`apiTokenCommand` are commands, not
-plain option values, so the credentials never land in the Nix store (the
-same reasoning as [secrets](#secrets-mmsecrets) below, and the same
-pattern as `mm.anduril.ai.bearerCommand` in mm-nixos-anduril). `ntfy.topic`
-is plain text by design - ntfy's own security model treats an unguessable
-topic name as the secret, not something to wrap in a command.
+(`notificationOptions`), not duplicated per module. Config is per
+invocation, by flags, not baked in at build time or read from global
+state - so `mm.claude` and `mm.pi` can each use different settings
+without fighting over the same environment variable.
+`library/default.nix`'s `mkNotifyCommand` builds the flag string for a
+resolved `notifications` value; `hasScriptNotify` says whether any
+script-driven backend is on (as opposed to `claudePush`, which is not).
 
 ## home-manager (`homeManager`)
 

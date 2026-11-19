@@ -75,33 +75,20 @@ rec {
       withClaudePush ? false,
     }:
     {
-      ntfy = {
-        enable = mkEnableOption "a push to an ntfy topic when a harness is done or needs input";
-        server = mkOption {
-          description = "ntfy server.";
-          type = types.str;
-          default = "https://ntfy.sh";
-        };
-        topic = mkOption {
-          description = "ntfy topic. Treat this as a shared secret: anyone who knows it can read your notifications.";
-          type = types.str;
-        };
-      };
-
-      pushover = {
-        enable = mkEnableOption "a Pushover notification when a harness is done or needs input";
-        userKeyCommand = mkOption {
-          description = "Command that prints the Pushover user key. A command, not a plain value, so the key does not land in the Nix store.";
-          type = types.listOf types.str;
-        };
-        apiTokenCommand = mkOption {
-          description = "Command that prints the Pushover application API token. A command, not a plain value, so the token does not land in the Nix store.";
-          type = types.listOf types.str;
-        };
+      urlsCommand = mkOption {
+        description = ''
+          Command that prints one apprise notification URL per line
+          (https://github.com/caronc/apprise#popular-notification-services) -
+          Slack, Discord, email, SMS, or any of apprise's other 100+
+          services. A command, not plain values, so any embedded
+          credentials do not land in the Nix store.
+        '';
+        type = types.listOf types.str;
+        default = [ ];
       };
 
       command = mkOption {
-        description = "Extra shell command to run on notify, in addition to any backend above. Called with the message as $1.";
+        description = "Extra shell command to run on notify, in addition to urlsCommand. Called with the message as $1.";
         type = types.nullOr types.str;
         default = null;
       };
@@ -112,9 +99,7 @@ rec {
 
   # True when a script-driven backend (as opposed to claudePush, which is
   # native to Claude) is on for a resolved `notifications` config value.
-  hasScriptNotify =
-    notifications:
-    notifications.ntfy.enable || notifications.pushover.enable || notifications.command != null;
+  hasScriptNotify = notifications: notifications.urlsCommand != [ ] || notifications.command != null;
 
   # Builds the mm-notify invocation (package.nix in ../packages/mm-notify)
   # for a resolved `notifications` config value: the binary plus flags, as
@@ -128,17 +113,9 @@ rec {
     pkgs: notifications:
     lib.concatStringsSep " " (
       [ "${pkgs.mm-notify}/bin/mm-notify" ]
-      ++ lib.optionals notifications.ntfy.enable [
-        "--ntfy-server"
-        (lib.escapeShellArg notifications.ntfy.server)
-        "--ntfy-topic"
-        (lib.escapeShellArg notifications.ntfy.topic)
-      ]
-      ++ lib.optionals notifications.pushover.enable [
-        "--pushover-user-key-command"
-        (lib.escapeShellArg (lib.escapeShellArgs notifications.pushover.userKeyCommand))
-        "--pushover-api-token-command"
-        (lib.escapeShellArg (lib.escapeShellArgs notifications.pushover.apiTokenCommand))
+      ++ lib.optionals (notifications.urlsCommand != [ ]) [
+        "--urls-command"
+        (lib.escapeShellArg (lib.escapeShellArgs notifications.urlsCommand))
       ]
       ++ lib.optionals (notifications.command != null) [
         "--command"
