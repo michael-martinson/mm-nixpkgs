@@ -3,6 +3,7 @@ let
   inherit (inputs.nixpkgs) lib;
 
   inherit (lib.attrsets) genAttrs;
+  inherit (lib) mkEnableOption mkOption types;
 in
 rec {
   # Paths of every module.nix below `directory`, at any depth.
@@ -103,4 +104,75 @@ rec {
       echo -n "$stat"
     end
   '';
+
+  # Option declarations shared by every module that can notify on an AI
+  # agent being done or needing input (mm.pi, mm.claude, mm.ai). Spliced
+  # directly into an options tree, e.g. `options.mm.pi.notifications =
+  # notificationOptions { };`. withClaudePush adds the Claude-only native
+  # mobile push toggle - not script-driven, so hasScriptNotify ignores it.
+  notificationOptions =
+    { withClaudePush ? false }:
+    {
+      ntfy = {
+        enable = mkEnableOption "a push to an ntfy topic when a harness is done or needs input";
+        server = mkOption {
+          description = "ntfy server.";
+          type = types.str;
+          default = "https://ntfy.sh";
+        };
+        topic = mkOption {
+          description = "ntfy topic. Treat this as a shared secret: anyone who knows it can read your notifications.";
+          type = types.str;
+        };
+      };
+
+      pushover = {
+        enable = mkEnableOption "a Pushover notification when a harness is done or needs input";
+        userKeyCommand = mkOption {
+          description = "Command that prints the Pushover user key. A command, not a plain value, so the key does not land in the Nix store.";
+          type = types.listOf types.str;
+        };
+        apiTokenCommand = mkOption {
+          description = "Command that prints the Pushover application API token. A command, not a plain value, so the token does not land in the Nix store.";
+          type = types.listOf types.str;
+        };
+      };
+
+      command = mkOption {
+        description = "Extra shell command to run on notify, in addition to any backend above. Called with the message as $1.";
+        type = types.nullOr types.str;
+        default = null;
+      };
+    }
+    // lib.optionalAttrs withClaudePush {
+      claudePush.enable = mkEnableOption "Claude Code's own mobile push when it needs input (needs the mobile app linked)";
+    };
+
+  # True when a script-driven backend (as opposed to claudePush, which is
+  # native to Claude) is on for a resolved `notifications` config value.
+  hasScriptNotify = notifications: notifications.ntfy.enable || notifications.pushover.enable || notifications.command != null;
+
+  # Builds the shared notify-dispatch script for a resolved `notifications`
+  # config value. Takes pkgs explicitly (like defaultShellPackages above),
+  # since it is not available in this file's own scope.
+  mkNotifyScript =
+    pkgs: notifications:
+    pkgs.writeShellScript "mm-notify" ''
+      message="$1"
+      ${lib.optionalString notifications.ntfy.enable ''
+        ${pkgs.curl}/bin/curl -fsS -d "$message" "${notifications.ntfy.server}/${notifications.ntfy.topic}" >/dev/null 2>&1 || true
+      ''}
+      ${lib.optionalString notifications.pushover.enable ''
+        user_key=$(${lib.escapeShellArgs notifications.pushover.userKeyCommand})
+        api_token=$(${lib.escapeShellArgs notifications.pushover.apiTokenCommand})
+        ${pkgs.curl}/bin/curl -fsS \
+          --form-string "token=$api_token" \
+          --form-string "user=$user_key" \
+          --form-string "message=$message" \
+          https://api.pushover.net/1/messages.json >/dev/null 2>&1 || true
+      ''}
+      ${lib.optionalString (notifications.command != null) ''
+        ${notifications.command} "$message" || true
+      ''}
+    '';
 }
