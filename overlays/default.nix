@@ -13,26 +13,30 @@ let
   disabledOverlays = [
   ];
 
+  # Only *.nix files are overlays - a sibling file (a .lua config read via
+  # builtins.readFile, say) is not one to import.
   localOverlays = composeManyExtensions (
     map (f: import ./${f}) (
       builtins.attrNames (
-        filterAttrs (f: t: t == "regular" && f != "default.nix" && !(builtins.elem f disabledOverlays)) (
-          builtins.readDir ./.
-        )
+        filterAttrs (
+          f: t:
+          t == "regular" && f != "default.nix" && lib.hasSuffix ".nix" f && !(builtins.elem f disabledOverlays)
+        ) (builtins.readDir ./.)
       )
     )
   );
 
-  # Adds pkgs.pi, built from ../packages/pi (our own derivation - see its
-  # module.nix comment for why not upstream's flake).
-  pi = final: prev: {
-    pi = final.callPackage ../packages/pi/package.nix { };
+  # Exposes every ../packages/<name>/package.nix as pkgs.<name> - add a
+  # package by adding a folder, nothing to wire up here.
+  packages = final: _prev: lib.filesystem.packagesFromDirectoryRecursive {
+    callPackage = final.callPackage;
+    directory = ../packages;
   };
 
   default = composeManyExtensions [
     localOverlays
     library
-    pi
+    packages
   ];
 in
 {

@@ -10,14 +10,20 @@ the consuming flake instead.
 
 ```
 flake.nix               inputs: nixpkgs, home-manager. Outputs below.
-library/default.nix      defaultSystems, defaultShellPackages, fishShellInit,
-                         modulesFromDirectoryRecursive
+library/
+  default.nix            defaultSystems, defaultShellPackages, fishShellInit,
+                         modulesFromDirectoryRecursive, notificationOptions,
+                         mkNotifyCommand, hasScriptNotify
+  fish-shell-init.fish    the fish prompt/greeting - a real file, see "Conventions"
 overlays/
-  default.nix            composes every overlay file in this folder, adds
-                         pkgs.myLibrary and pkgs.pi (from ../packages/pi)
+  default.nix            composes every *.nix file in this folder, adds
+                         pkgs.myLibrary and every ../packages/<name> (see below)
   neovim.nix             LazyVim setup
-packages/
+  neovim-luarc.lua        the LazyVim Lua config - a real file, see "Conventions"
+packages/                 every folder here becomes pkgs.<name> - add a package
+                         by adding a folder, nothing to wire up in overlays/
   pi/                    our own pi.dev package - see its own header comment
+  mm-notify/             notifies on an AI agent being done or needing input
 modules/
   default.nix            exports each top-level folder as nixosModules.<name>,
                          plus nixosModules.default (everything, recursively)
@@ -27,11 +33,33 @@ modules/
     module.nix           mm.ai - AGENTS.md distribution, plus turning on mm.claude/mm.pi
     AGENTS.md             the shared agent rules this module ships to every tool
   claude/module.nix      mm.claude - Claude Code, generic, with notifications
-  pi/module.nix          mm.pi - Pi (pi.dev), with notifications
+  pi/
+    module.nix           mm.pi - Pi (pi.dev), with notifications
+    extensions/*.ts       every file here ships to ~/.pi/agent/extensions/ -
+                         add a Pi extension by adding a file, nothing else
+  fish/module.nix        mm.fish - the shared fish shell config
   user/module.nix        mm.user
 dev-shells/default.nix    the `fish` dev shell
 legacy-packages/default.nix   nixpkgs with overlays.default applied, per system
 ```
+
+## Conventions
+
+Scripts and config in another language - bash, fish, Lua, TypeScript, and
+so on - are never inlined as Nix strings. They live in their own file,
+read with `builtins.readFile` (or, for a package, `writeShellApplication`'s
+`text`), so an editor gives them real syntax highlighting and normal
+editing instead of a quoted blob inside a `.nix` file. `library/fish-shell-init.fish`,
+`overlays/neovim-luarc.lua`, `modules/pi/extensions/*.ts`, and
+`packages/mm-notify/mm-notify.sh` all follow this. A one-line shell
+fragment passed as an option value (a hook `command` string, say) is not
+substantial enough to warrant a separate file - use judgment.
+
+"All scripts should be packages" for anything meant to be run, not just
+sourced as config: `packages/mm-notify` is a real, runnable, testable CLI
+(`nix run .#mm-notify -- --command=echo "test"`), not a per-caller
+Nix-generated script. See `overlays/default.nix`'s `packages` overlay for
+how every folder under `packages/` becomes `pkgs.<name>` automatically.
 
 ## Modules
 
@@ -42,13 +70,19 @@ legacy-packages/default.nix   nixpkgs with overlays.default applied, per system
 | `ai` | `mm.ai` | `mm.ai.enable` needs nothing extra; `mm.ai.claude.enable`/`mm.ai.pi.enable` need `claude`/`pi` imported too (see below) |
 | `claude` | `mm.claude` | a thin, generic `programs.claude-code` wrapper with notifications - needs `homeManager` imported |
 | `pi` | `mm.pi` | installs `pkgs.pi` (our own package) with notifications - nothing extra |
-| `user` | `mm.user` | the account, fonts, fish, direnv, editor, nix-ld, and git identity for one user, named by `mm.user.username` |
+| `fish` | `mm.fish` | the shared fish shell config (`programs.fish`) - nothing extra |
+| `user` | `mm.user` | the account, fonts, direnv, editor, nix-ld, and git identity for one user, named by `mm.user.username` - needs `fish` imported too (see below) |
 | `homeManager` | - | re-exports `home-manager.nixosModules.home-manager`, so a consumer does not need its own home-manager input. Only needed if you turn on `mm.user.homeManager.enable`, which gives that user a home-manager profile (`extraConfig` merges into `home-manager.users.<username>`, for a shared home structure/packages/dotfiles) |
 
 Any module that sets `home-manager.*` or `sops.*` (even inside `mkIf`) needs that
 namespace declared somewhere in the system, regardless of whether the option
 is actually enabled - so `user`/`secrets` need `homeManager`/`sops-nix` imported
-too, even with `homeManager.enable`/`mm.secrets.enable` left off.
+too, even with `homeManager.enable`/`mm.secrets.enable` left off. The same rule
+applies between this repo's own modules now too: `user` sets `mm.fish.enable`
+(`mkDefault`, so setting it yourself still wins) and `ai` sets `mm.claude`/`mm.pi`,
+so `fish`/`claude`/`pi` need importing alongside `user`/`ai` even when left at
+their defaults. `nixosModules.default` covers all of this; cherry-picking
+individual modules does not.
 
 ## Secrets (`mm.secrets`)
 
@@ -106,13 +140,8 @@ mm.ai = {
 };
 ```
 
-Because `mm.ai.claude.enable`/`mm.ai.pi.enable` set `mm.claude`/`mm.pi` as
-plain config, `claude`/`pi` need to be imported alongside `ai` even if you
-only ever flip `mm.ai.pi.enable` and never `mm.ai.claude.enable` (or vice
-versa) - the same "the namespace must exist regardless of whether it is
-enabled" rule noted above, just between this repo's own modules this time.
-`nixosModules.default` already covers this; cherry-picking individual
-modules does not.
+(`claude`/`pi` need importing alongside `ai` for this to work - see the note
+in the Modules table above.)
 
 The four symlink targets `mm.ai.enable` manages were confirmed by reading each
 tool's own source or docs - OpenCode's `instruction-discovery.ts`/
@@ -151,21 +180,30 @@ system - reading its docs site, not just its README, turned up
 `packages/coding-agent/docs/extensions.md` in its repo, with real event
 names (`agent_settled`, `ui_prompt_start`) confirmed against the npm
 package's own shipped `.d.ts` files and its official
-`examples/extensions/notify.ts`. When a script backend is on, this drops a
-small extension into `~/.pi/agent/extensions/`, where Pi auto-discovers
-it - listening for `agent_settled` ("done") and `ui_prompt_start` ("needs
-input"). Verified end to end against the real built package: the
-extension loads without error (fails only at the expected "no API key"
-step, since no credentials are configured in that test).
+`examples/extensions/notify.ts`. `modules/pi/extensions/notify.ts` listens
+for them and shells out to `$MM_NOTIFY_COMMAND` - set system-wide by this
+module to `mm-notify` plus this user's notification flags, as one string.
+That keeps the extension itself a plain, static file (see "Conventions"):
+no Nix templating, and every file under `modules/pi/extensions/` ships the
+same way, so adding another extension is just adding a file. Verified end
+to end against the real built package: the extension loads without error
+(fails only at the expected "no API key" step, since no credentials are
+configured in that test).
 
 ### Notifications (shared by `mm.claude`, `mm.pi`, and `mm.ai`)
 
 The `notifications` option shape (`ntfy`/`pushover`/`command`, plus
-`claudePush` on `mm.claude`/`mm.ai`) and the shell script that dispatches
-them live once in `library/default.nix` (`notificationOptions`,
-`mkNotifyScript`, `hasScriptNotify`), not duplicated per module. Every
-backend can be turned on independently - enabling more than one fires all
-of them. `pushover.userKeyCommand`/`apiTokenCommand` are commands, not
+`claudePush` on `mm.claude`/`mm.ai`) lives once in `library/default.nix`
+(`notificationOptions`), not duplicated per module. The actual dispatching
+is `packages/mm-notify` - a real package (see "Conventions"), configured
+per invocation by flags, not baked in at build time or read from global
+state - so `mm.claude` and `mm.pi` can each use different settings without
+fighting over the same environment variable. `library/default.nix`'s
+`mkNotifyCommand` builds the flag string for a resolved `notifications`
+value; `hasScriptNotify` says whether any script-driven backend is on (as
+opposed to `claudePush`, which is not). Every backend can be turned on
+independently - enabling more than one fires all of them.
+`pushover.userKeyCommand`/`apiTokenCommand` are commands, not
 plain option values, so the credentials never land in the Nix store (the
 same reasoning as [secrets](#secrets-mmsecrets) below, and the same
 pattern as `mm.anduril.ai.bearerCommand` in mm-nixos-anduril). `ntfy.topic`

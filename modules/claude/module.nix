@@ -20,11 +20,11 @@
 }:
 let
   inherit (lib) mkIf mkOption mkEnableOption types;
-  inherit (pkgs.myLibrary) notificationOptions mkNotifyScript hasScriptNotify;
+  inherit (pkgs.myLibrary) notificationOptions mkNotifyCommand hasScriptNotify;
   cfg = config.mm.claude;
 
   scriptNotifyEnabled = hasScriptNotify cfg.notifications;
-  notifyScript = mkNotifyScript pkgs cfg.notifications;
+  notifyCommand = mkNotifyCommand pkgs cfg.notifications;
 in
 {
   options.mm.claude = {
@@ -45,10 +45,10 @@ in
         inputNeededNotifEnabled = true;
       }) (lib.optionalAttrs scriptNotifyEnabled {
         hooks.Notification = [
-          { hooks = [ { type = "command"; command = ''${notifyScript} "Claude needs your input" >/dev/null 2>&1 || true''; } ]; }
+          { hooks = [ { type = "command"; command = ''${notifyCommand} "Claude needs your input" >/dev/null 2>&1 || true''; } ]; }
         ];
         hooks.Stop = [
-          { hooks = [ { type = "command"; command = ''${notifyScript} "Claude finished" >/dev/null 2>&1 || true''; } ]; }
+          { hooks = [ { type = "command"; command = ''${notifyCommand} "Claude finished" >/dev/null 2>&1 || true''; } ]; }
         ];
       });
     };

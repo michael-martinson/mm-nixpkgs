@@ -26,7 +26,7 @@
 }:
 let
   inherit (lib) mkEnableOption mkOption mkIf mkMerge mkDefault types;
-  inherit (pkgs.myLibrary) fishShellInit defaultShellPackages;
+  inherit (pkgs.myLibrary) defaultShellPackages;
 
   cfg = config.mm.user;
 in
@@ -100,10 +100,7 @@ in
       ];
 
       programs.direnv.enable = true;
-      programs.fish = {
-        enable = true;
-        shellInit = fishShellInit;
-      };
+      mm.fish.enable = mkDefault true;
       # This is required for treesitter to work in lazyvim
       programs.nix-ld.enable = true;
       environment.variables.EDITOR = "nvim";

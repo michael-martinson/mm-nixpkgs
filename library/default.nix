@@ -65,45 +65,7 @@ rec {
       rust-analyzer
     ];
 
-  fishShellInit = ''
-    function fish_greeting
-      string join "" -- "Welcome to the " (set_color brred) "Fantastic " (set_color brgreen) "Fancy "  (set_color brblue) "Fish " (set_color brcyan) "Shell"
-    end
-
-    function fish_prompt
-      set -g __fish_git_prompt_color blue
-      set -g __fish_git_prompt_showcolorhints true
-      set -g __fish_git_prompt_color_branch blue
-
-      set -g __fish_git_prompt_showdirtystate true
-      set -g __fish_git_prompt_showuntrackedfiles true
-      set -g __fish_git_prompt_showupstream auto
-
-      if set -q SHELL_NAME
-        set_color -i magenta
-        echo -n "[$SHELL_NAME] "
-      end
-      set_color normal
-      echo -n (prompt_pwd --full-length-dirs=2)
-      echo -n (fish_git_prompt)
-      set_color --bold bryellow
-      echo ""
-      echo -n "♱ "
-      set_color normal
-    end
-
-    function fish_right_prompt
-      set -l last_status $status
-
-      # Prompt status only if its not 0
-      set -l stat
-      if test $last_status -ne 0
-          set stat (set_color red)"[$last_status]"(set_color normal)
-      end
-
-      echo -n "$stat"
-    end
-  '';
+  fishShellInit = builtins.readFile ./fish-shell-init.fish;
 
   # Option declarations shared by every module that can notify on an AI
   # agent being done or needing input (mm.pi, mm.claude, mm.ai). Spliced
@@ -152,27 +114,33 @@ rec {
   # native to Claude) is on for a resolved `notifications` config value.
   hasScriptNotify = notifications: notifications.ntfy.enable || notifications.pushover.enable || notifications.command != null;
 
-  # Builds the shared notify-dispatch script for a resolved `notifications`
-  # config value. Takes pkgs explicitly (like defaultShellPackages above),
-  # since it is not available in this file's own scope.
-  mkNotifyScript =
+  # Builds the mm-notify invocation (package.nix in ../packages/mm-notify)
+  # for a resolved `notifications` config value: the binary plus flags, as
+  # one shell-safe string - usable directly in a hook `command`, or as a
+  # full command for something that shells out itself (see mm.pi's
+  # extension). Takes pkgs explicitly (like defaultShellPackages above),
+  # since it is not available in this file's own scope. Each caller builds
+  # its own string from its own `notifications` value, so mm.claude and
+  # mm.pi can use different settings without touching shared/global state.
+  mkNotifyCommand =
     pkgs: notifications:
-    pkgs.writeShellScript "mm-notify" ''
-      message="$1"
-      ${lib.optionalString notifications.ntfy.enable ''
-        ${pkgs.curl}/bin/curl -fsS -d "$message" "${notifications.ntfy.server}/${notifications.ntfy.topic}" >/dev/null 2>&1 || true
-      ''}
-      ${lib.optionalString notifications.pushover.enable ''
-        user_key=$(${lib.escapeShellArgs notifications.pushover.userKeyCommand})
-        api_token=$(${lib.escapeShellArgs notifications.pushover.apiTokenCommand})
-        ${pkgs.curl}/bin/curl -fsS \
-          --form-string "token=$api_token" \
-          --form-string "user=$user_key" \
-          --form-string "message=$message" \
-          https://api.pushover.net/1/messages.json >/dev/null 2>&1 || true
-      ''}
-      ${lib.optionalString (notifications.command != null) ''
-        ${notifications.command} "$message" || true
-      ''}
-    '';
+    lib.concatStringsSep " " (
+      [ "${pkgs.mm-notify}/bin/mm-notify" ]
+      ++ lib.optionals notifications.ntfy.enable [
+        "--ntfy-server"
+        (lib.escapeShellArg notifications.ntfy.server)
+        "--ntfy-topic"
+        (lib.escapeShellArg notifications.ntfy.topic)
+      ]
+      ++ lib.optionals notifications.pushover.enable [
+        "--pushover-user-key-command"
+        (lib.escapeShellArg (lib.escapeShellArgs notifications.pushover.userKeyCommand))
+        "--pushover-api-token-command"
+        (lib.escapeShellArg (lib.escapeShellArgs notifications.pushover.apiTokenCommand))
+      ]
+      ++ lib.optionals (notifications.command != null) [
+        "--command"
+        (lib.escapeShellArg notifications.command)
+      ]
+    );
 }

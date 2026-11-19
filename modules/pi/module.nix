@@ -1,11 +1,16 @@
 /*
   Pi (pi.dev): the AI coding agent harness. Installs mm.pi.package (our own
-  build - see ../../packages/pi for why, not upstream's flake) and, when a
-  notification backend is on, drops a real Pi extension into
-  ~/.pi/agent/extensions/ (auto-discovered, verified empirically against a
-  scratch agent dir), listening for agent_settled ("done") and
+  build - see ../../packages/pi for why, not upstream's flake) and ships
+  every file in ./extensions/ into ~/.pi/agent/extensions/ (auto-discovered,
+  verified empirically against a scratch agent dir), so adding another
+  extension is just adding another file there - no change needed here.
+
+  ./extensions/notify.ts listens for agent_settled ("done") and
   ui_prompt_start ("needs input") - confirmed against the npm package's own
-  shipped .d.ts files and its official examples/extensions/notify.ts.
+  shipped .d.ts files and its official examples/extensions/notify.ts - and
+  shells out to $MM_NOTIFY_COMMAND (set below): mm-notify (packages/mm-notify)
+  plus this user's notification flags, as one string - a safe no-op when no
+  notification backend is on.
 
   Standalone: set mm.pi.enable/username/notifications directly. Or let
   mm.ai.pi.enable turn this on for you, using mm.ai.username and
@@ -18,25 +23,13 @@
   ...
 }:
 let
-  inherit (lib) mkIf mkMerge mkEnableOption mkOption mkPackageOption types;
-  inherit (pkgs.myLibrary) notificationOptions mkNotifyScript hasScriptNotify;
+  inherit (lib) mkIf mkOption mkEnableOption mkPackageOption types;
+  inherit (pkgs.myLibrary) notificationOptions mkNotifyCommand;
   cfg = config.mm.pi;
 
-  scriptNotifyEnabled = hasScriptNotify cfg.notifications;
-  notifyScript = mkNotifyScript pkgs cfg.notifications;
+  notifyCommand = mkNotifyCommand pkgs cfg.notifications;
 
-  notifyExtension = ''
-    import { execFile } from "node:child_process";
-
-    function notify(message) {
-      execFile(${builtins.toJSON "${notifyScript}"}, [message], () => {});
-    }
-
-    export default function (pi) {
-      pi.on("agent_settled", async () => notify("Pi finished"));
-      pi.on("ui_prompt_start", async () => notify("Pi needs your input"));
-    }
-  '';
+  extensionNames = builtins.attrNames (builtins.readDir ./extensions);
 in
 {
   options.mm.pi = {
@@ -52,18 +45,30 @@ in
     notifications = notificationOptions { };
   };
 
-  config = mkIf cfg.enable (mkMerge [
-    { environment.systemPackages = [ cfg.package ]; }
+  config = mkIf cfg.enable {
+    environment.systemPackages = [ cfg.package ];
 
-    (mkIf scriptNotifyEnabled {
-      environment.etc."mm-pi/notify.ts".text = notifyExtension;
+    # Read by ./extensions/*.ts. Not a secret (credentials are resolved by
+    # mm-notify's own --*-command flags at call time, not baked in here) -
+    # safe to set system-wide.
+    environment.variables.MM_NOTIFY_COMMAND = notifyCommand;
 
-      systemd.tmpfiles.rules = [
+    environment.etc = lib.listToAttrs (
+      map (name: {
+        name = "mm-pi/extensions/${name}";
+        value.source = ./extensions/${name};
+      }) extensionNames
+    );
+
+    systemd.tmpfiles.rules =
+      [
         "d /home/${cfg.username}/.pi 0755 ${cfg.username} users -"
         "d /home/${cfg.username}/.pi/agent 0755 ${cfg.username} users -"
         "d /home/${cfg.username}/.pi/agent/extensions 0755 ${cfg.username} users -"
-        "L+ /home/${cfg.username}/.pi/agent/extensions/mm-pi-notify.ts - - - - /etc/mm-pi/notify.ts"
-      ];
-    })
-  ]);
+      ]
+      ++ map (
+        name:
+        "L+ /home/${cfg.username}/.pi/agent/extensions/mm-${name} - - - - /etc/mm-pi/extensions/${name}"
+      ) extensionNames;
+  };
 }
