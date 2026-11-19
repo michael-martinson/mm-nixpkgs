@@ -23,12 +23,16 @@ let
     )
   );
 
+  # Adds pkgs.pi, built from ../packages/pi (our own derivation - see its
+  # module.nix comment for why not upstream's flake).
+  pi = final: prev: {
+    pi = final.callPackage ../packages/pi/package.nix { };
+  };
+
   default = composeManyExtensions [
     localOverlays
     library
-    # Adds pkgs.pi. Upstream ships this overlay itself; reuse it instead of
-    # writing our own package derivation.
-    inputs.pi.overlays.default
+    pi
   ];
 in
 {

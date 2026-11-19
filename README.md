@@ -9,12 +9,15 @@ the consuming flake instead.
 ## Structure
 
 ```
-flake.nix               inputs: nixpkgs, home-manager, pi. Outputs below.
+flake.nix               inputs: nixpkgs, home-manager. Outputs below.
 library/default.nix      defaultSystems, defaultShellPackages, fishShellInit,
                          modulesFromDirectoryRecursive
 overlays/
-  default.nix            composes every overlay file in this folder, adds pkgs.myLibrary
+  default.nix            composes every overlay file in this folder, adds
+                         pkgs.myLibrary and pkgs.pi (from ../packages/pi)
   neovim.nix             LazyVim setup
+packages/
+  pi/                    our own pi.dev package - see its own header comment
 modules/
   default.nix            exports each top-level folder as nixosModules.<name>,
                          plus nixosModules.default (everything, recursively)
@@ -75,7 +78,7 @@ mm.ai = {
   username = "mmartinson";
 
   claude.enable = true; # Claude Code, generically, via home-manager - no gateway, no API key wiring
-  pi.enable = true;      # Pi (pi.dev), via its own upstream overlay
+  pi.enable = true;      # Pi (pi.dev), our own package - see packages/pi
 
   notifications = {
     claudePush.enable = true;  # Claude's own mobile push (Claude only, needs the mobile app linked)
@@ -92,11 +95,21 @@ mm-nixos-anduril) should use that instead, not both: they both set
 `home-manager.users.<username>.programs.claude-code`, and NixOS does not know how to merge two
 different settings definitions that happen to collide on a key.
 
-`pi.enable` installs `pkgs.pi`, from upstream's own overlay (see `overlays/default.nix`). Pi has
-no documented hook or notification system as of writing (its README does not mention one, and
-docs.pi.dev was unreachable to check further), so notifications for Pi work differently from
-Claude: this wraps the `pi` binary and fires the notify command when the process exits. That
-covers "done", not "needs input partway through a session" - Claude's hooks cover both.
+`pi.enable` installs `pkgs.pi` - our own package (`packages/pi`), built from the npm registry
+instead of upstream's flake. Upstream's flake build fetches a model catalog from pi.dev as a
+fixed-output derivation; that is blocked on at least one network this runs on (TLS reset on
+connect, confirmed with plain `curl` too, not a Nix sandboxing artifact). The npm-published
+package ships a prebuilt `dist/bundle/cli.js` - no network, no build step, needed at all, and
+`npm install --ignore-scripts` plus the resulting binary were both verified to actually work.
+
+For notifications, Pi really does have a documented extension/event system - reading its docs
+site, not just its README, turned up `packages/coding-agent/docs/extensions.md` in its repo,
+with real event names (`agent_settled`, `ui_prompt_start`) confirmed against the npm package's
+own shipped `.d.ts` files and its official `examples/extensions/notify.ts`. When a script backend
+is on, this drops a small extension into `~/.pi/agent/extensions/`, where Pi auto-discovers it -
+listening for `agent_settled` ("done") and `ui_prompt_start` ("needs input"). Verified end to end
+against the real built package: the extension loads without error (fails only at the expected
+"no API key" step, since no credentials are configured in that test).
 
 Every notification backend can be turned on independently - enabling more than one fires all of
 them. `pushover.userKeyCommand`/`apiTokenCommand` are commands, not plain option values, so the

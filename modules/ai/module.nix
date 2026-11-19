@@ -12,13 +12,22 @@
     Claude Code module (mm.anduril.claude-code in mm-nixos-anduril) should
     use that instead of mm.ai.claude - do not enable both, they both try to
     set home-manager.users.<username>.programs.claude-code.
+  - mm.ai.pi.package is our own build (../../packages/pi), from the npm
+    registry, not upstream's flake - that fetches a model catalog from
+    pi.dev at build time, which this network blocks. No home-manager, no
+    gateway wiring, plain NixOS.
 
   - mm.ai.notifications fires one or more backends when a harness is done
     or needs input: Claude's own mobile push (claude only), ntfy, Pushover,
-    or an arbitrary command. For Claude this uses its Notification/Stop
-    hooks. Pi has no documented hook or notification system as of writing,
-    so for Pi this wraps the `pi` binary and notifies when the process
-    exits - this covers "done", not "needs input mid-session".
+    or an arbitrary command.
+    - Claude: its real Notification/Stop hooks.
+    - Pi: a real Pi extension (verified against the actual package: its
+      docs, type definitions, and the official examples/extensions/notify.ts
+      it ships - see packages/pi/package.nix for how it is packaged), dropped
+      into ~/.pi/agent/extensions/ where Pi auto-discovers it, listening for
+      the agent_settled ("done", including "ready for your next message")
+      and ui_prompt_start ("a blocking extension UI prompt is waiting")
+      events.
 */
 {
   config,
@@ -33,7 +42,6 @@ let
     mkEnableOption
     mkOption
     mkPackageOption
-    optionals
     optionalString
     types
     ;
@@ -63,11 +71,19 @@ let
   scriptNotifyEnabled =
     cfg.notifications.ntfy.enable || cfg.notifications.pushover.enable || cfg.notifications.command != null;
 
-  piWithNotify = pkgs.writeShellScriptBin "pi" ''
-    "${cfg.pi.package}/bin/pi" "$@"
-    status=$?
-    "${notifyScript}" "Pi session ended (exit $status)"
-    exit $status
+  # A real Pi extension (see module header). jiti (Pi's own TS loader)
+  # strips types at load time, so no type import and no build step needed.
+  piNotifyExtension = ''
+    import { execFile } from "node:child_process";
+
+    function notify(message) {
+      execFile(${builtins.toJSON "${notifyScript}"}, [message], () => {});
+    }
+
+    export default function (pi) {
+      pi.on("agent_settled", async () => notify("Pi finished"));
+      pi.on("ui_prompt_start", async () => notify("Pi needs your input"));
+    }
   '';
 in
 {
@@ -155,8 +171,18 @@ in
       };
     })
 
-    (mkIf cfg.pi.enable {
-      environment.systemPackages = [ (if scriptNotifyEnabled then piWithNotify else cfg.pi.package) ];
-    })
+    (mkIf cfg.pi.enable (mkMerge [
+      { environment.systemPackages = [ cfg.pi.package ]; }
+      (mkIf scriptNotifyEnabled {
+        environment.etc."mm-ai/pi-notify.ts".text = piNotifyExtension;
+
+        systemd.tmpfiles.rules = [
+          "d /home/${cfg.username}/.pi 0755 ${cfg.username} users -"
+          "d /home/${cfg.username}/.pi/agent 0755 ${cfg.username} users -"
+          "d /home/${cfg.username}/.pi/agent/extensions 0755 ${cfg.username} users -"
+          "L+ /home/${cfg.username}/.pi/agent/extensions/mm-ai-notify.ts - - - - /etc/mm-ai/pi-notify.ts"
+        ];
+      })
+    ]))
   ];
 }
