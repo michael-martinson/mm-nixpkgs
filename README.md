@@ -11,15 +11,12 @@ the consuming flake instead.
 ```
 flake.nix               inputs: nixpkgs, home-manager. Outputs below.
 library/
-  default.nix            defaultSystems, defaultShellPackages, fishShellInit,
+  default.nix            defaultSystems, defaultShellPackages,
                          modulesFromDirectoryRecursive, notificationOptions,
                          mkNotifyCommand, hasScriptNotify
-  fish-shell-init.fish    the fish prompt/greeting - a real file, see "Conventions"
 overlays/
   default.nix            composes every *.nix file in this folder, adds
                          pkgs.myLibrary and every ../packages/<name> (see below)
-  neovim.nix             LazyVim setup
-  neovim-luarc.lua        the LazyVim Lua config - a real file, see "Conventions"
 packages/                 every folder here becomes pkgs.<name> - add a package
                          by adding a folder, nothing to wire up in overlays/
   pi/                    our own pi.dev package - see its own header comment
@@ -37,7 +34,12 @@ modules/
     module.nix           mm.pi - Pi (pi.dev), with notifications
     extensions/*.ts       every file here ships to ~/.pi/agent/extensions/ -
                          add a Pi extension by adding a file, nothing else
-  fish/module.nix        mm.fish - the shared fish shell config
+  fish/
+    module.nix            mm.fish - the shared fish shell config
+    fish-shell-init.fish  the fish prompt/greeting - a real file, see "Conventions"
+  neovim/
+    module.nix            mm.neovim - LazyVim neovim, via a gated overlay
+    neovim-luarc.lua       the LazyVim Lua config - a real file, see "Conventions"
   user/module.nix        mm.user
 dev-shells/default.nix    the `fish` dev shell
 legacy-packages/default.nix   nixpkgs with overlays.default applied, per system
@@ -49,8 +51,8 @@ Scripts and config in another language - bash, fish, Lua, TypeScript, and
 so on - are never inlined as Nix strings. They live in their own file,
 read with `builtins.readFile` (or, for a package, `writeShellApplication`'s
 `text`), so an editor gives them real syntax highlighting and normal
-editing instead of a quoted blob inside a `.nix` file. `library/fish-shell-init.fish`,
-`overlays/neovim-luarc.lua`, `modules/pi/extensions/*.ts`, and
+editing instead of a quoted blob inside a `.nix` file. `modules/fish/fish-shell-init.fish`,
+`modules/neovim/neovim-luarc.lua`, `modules/pi/extensions/*.ts`, and
 `packages/mm-notify/mm-notify.sh` all follow this. A one-line shell
 fragment passed as an option value (a hook `command` string, say) is not
 substantial enough to warrant a separate file - use judgment.
@@ -71,18 +73,19 @@ how every folder under `packages/` becomes `pkgs.<name>` automatically.
 | `claude` | `mm.claude` | a thin, generic `programs.claude-code` wrapper with notifications - needs `homeManager` imported |
 | `pi` | `mm.pi` | installs `pkgs.pi` (our own package) with notifications - nothing extra |
 | `fish` | `mm.fish` | the shared fish shell config (`programs.fish`) - nothing extra |
-| `user` | `mm.user` | the account, fonts, direnv, editor, nix-ld, and git identity for one user, named by `mm.user.username` - needs `fish` imported too (see below) |
+| `neovim` | `mm.neovim` | LazyVim-configured `pkgs.neovim`, via an overlay this module contributes itself when enabled - nothing extra |
+| `user` | `mm.user` | the account, fonts, direnv, nix-ld, and git identity for one user, named by `mm.user.username` - needs `fish`/`neovim` imported too (see below) |
 | `homeManager` | - | re-exports `home-manager.nixosModules.home-manager`, so a consumer does not need its own home-manager input. Only needed if you turn on `mm.user.homeManager.enable`, which gives that user a home-manager profile (`extraConfig` merges into `home-manager.users.<username>`, for a shared home structure/packages/dotfiles) |
 
 Any module that sets `home-manager.*` or `sops.*` (even inside `mkIf`) needs that
 namespace declared somewhere in the system, regardless of whether the option
 is actually enabled - so `user`/`secrets` need `homeManager`/`sops-nix` imported
 too, even with `homeManager.enable`/`mm.secrets.enable` left off. The same rule
-applies between this repo's own modules now too: `user` sets `mm.fish.enable`
-(`mkDefault`, so setting it yourself still wins) and `ai` sets `mm.claude`/`mm.pi`,
-so `fish`/`claude`/`pi` need importing alongside `user`/`ai` even when left at
-their defaults. `nixosModules.default` covers all of this; cherry-picking
-individual modules does not.
+applies between this repo's own modules now too: `user` sets `mm.fish.enable`/
+`mm.neovim.enable` (`mkDefault`, so setting either yourself still wins) and
+`ai` sets `mm.claude`/`mm.pi`, so `fish`/`neovim`/`claude`/`pi` need importing
+alongside `user`/`ai` even when left at their defaults. `nixosModules.default`
+covers all of this; cherry-picking individual modules does not.
 
 ## Secrets (`mm.secrets`)
 

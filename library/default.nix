@@ -44,7 +44,7 @@ rec {
       jq
       wget
 
-      # neovim - configuratios set in overlay
+      # neovim - LazyVim config set by mm.neovim
       neovim
       # lazy vim deps
       fd
@@ -65,15 +65,15 @@ rec {
       rust-analyzer
     ];
 
-  fishShellInit = builtins.readFile ./fish-shell-init.fish;
-
   # Option declarations shared by every module that can notify on an AI
   # agent being done or needing input (mm.pi, mm.claude, mm.ai). Spliced
   # directly into an options tree, e.g. `options.mm.pi.notifications =
   # notificationOptions { };`. withClaudePush adds the Claude-only native
   # mobile push toggle - not script-driven, so hasScriptNotify ignores it.
   notificationOptions =
-    { withClaudePush ? false }:
+    {
+      withClaudePush ? false,
+    }:
     {
       ntfy = {
         enable = mkEnableOption "a push to an ntfy topic when a harness is done or needs input";
@@ -112,7 +112,9 @@ rec {
 
   # True when a script-driven backend (as opposed to claudePush, which is
   # native to Claude) is on for a resolved `notifications` config value.
-  hasScriptNotify = notifications: notifications.ntfy.enable || notifications.pushover.enable || notifications.command != null;
+  hasScriptNotify =
+    notifications:
+    notifications.ntfy.enable || notifications.pushover.enable || notifications.command != null;
 
   # Builds the mm-notify invocation (package.nix in ../packages/mm-notify)
   # for a resolved `notifications` config value: the binary plus flags, as

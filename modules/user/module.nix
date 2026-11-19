@@ -1,7 +1,7 @@
 /*
-  A common desktop user: the account itself, fonts, fish, direnv, the
-  default editor, nix-ld, git identity, and the shared dev tool list. One
-  user per machine, name set by `username`:
+  A common desktop user: the account itself, fonts, fish, neovim, direnv,
+  nix-ld, git identity, and the shared dev tool list. One user per
+  machine, name set by `username`:
 
     mm.user = {
       enable = true;
@@ -25,7 +25,14 @@
   ...
 }:
 let
-  inherit (lib) mkEnableOption mkOption mkIf mkMerge mkDefault types;
+  inherit (lib)
+    mkEnableOption
+    mkOption
+    mkIf
+    mkMerge
+    mkDefault
+    types
+    ;
   inherit (pkgs.myLibrary) defaultShellPackages;
 
   cfg = config.mm.user;
@@ -101,9 +108,9 @@ in
 
       programs.direnv.enable = true;
       mm.fish.enable = mkDefault true;
+      mm.neovim.enable = mkDefault true;
       # This is required for treesitter to work in lazyvim
       programs.nix-ld.enable = true;
-      environment.variables.EDITOR = "nvim";
 
       users.users.${cfg.username} = {
         isNormalUser = true;
@@ -127,7 +134,10 @@ in
       home-manager.users.${cfg.username} = mkMerge [
         {
           home.stateVersion = mkDefault (
-            if cfg.homeManager.stateVersion != null then cfg.homeManager.stateVersion else config.system.stateVersion
+            if cfg.homeManager.stateVersion != null then
+              cfg.homeManager.stateVersion
+            else
+              config.system.stateVersion
           );
         }
         cfg.homeManager.extraConfig

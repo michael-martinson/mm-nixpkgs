@@ -4,7 +4,9 @@ inputs.self.library.defaultSystems (
   let
     pkgs = inputs.self.legacyPackages.${system};
 
-    inherit (pkgs.myLibrary) defaultShellPackages fishShellInit;
+    inherit (pkgs.myLibrary) defaultShellPackages;
+
+    fishShellInit = builtins.readFile ../modules/fish/fish-shell-init.fish;
   in
   {
     fish = pkgs.mkShell {
