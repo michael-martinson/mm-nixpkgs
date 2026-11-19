@@ -9,7 +9,7 @@ the consuming flake instead.
 ## Structure
 
 ```
-flake.nix               inputs: nixpkgs, home-manager. Outputs below.
+flake.nix               inputs: nixpkgs, home-manager, pi. Outputs below.
 library/default.nix      defaultSystems, defaultShellPackages, fishShellInit,
                          modulesFromDirectoryRecursive
 overlays/
@@ -34,7 +34,7 @@ legacy-packages/default.nix   nixpkgs with overlays.default applied, per system
 |---|---|---|
 | `aws` | `mm.aws` | nothing extra |
 | `secrets` | `mm.secrets` | a thin sops-nix wrapper - also import `sops-nix.nixosModules.default` |
-| `ai` | `mm.ai` | nothing extra - writes `./ai/AGENTS.md` to `~/.ai/AGENTS.md` via `systemd.tmpfiles`, no home-manager |
+| `ai` | `mm.ai` | `mm.ai.enable` needs nothing extra; `mm.ai.claude.enable` needs `homeManager` imported |
 | `user` | `mm.user` | the account, fonts, fish, direnv, editor, nix-ld, and git identity for one user, named by `mm.user.username` |
 | `homeManager` | - | re-exports `home-manager.nixosModules.home-manager`, so a consumer does not need its own home-manager input. Only needed if you turn on `mm.user.homeManager.enable`, which gives that user a home-manager profile (`extraConfig` merges into `home-manager.users.<username>`, for a shared home structure/packages/dotfiles) |
 
@@ -66,6 +66,44 @@ Needs `services.openssh.enable = true` (for the host key to exist) and
 [mm-nixos-anduril's README](https://github.com/michael-martinson/mm-nixos-anduril#secrets)
 for a full worked example: encrypting a file, adding a machine's age key,
 and turning on a token.
+
+## AI (`mm.ai`)
+
+```nix
+mm.ai = {
+  enable = true;        # ships ./ai/AGENTS.md to ~/.ai/AGENTS.md (systemd.tmpfiles, no home-manager)
+  username = "mmartinson";
+
+  claude.enable = true; # Claude Code, generically, via home-manager - no gateway, no API key wiring
+  pi.enable = true;      # Pi (pi.dev), via its own upstream overlay
+
+  notifications = {
+    claudePush.enable = true;  # Claude's own mobile push (Claude only, needs the mobile app linked)
+    ntfy = { enable = true; topic = "..."; };          # any backend(s) can combine
+    pushover = { enable = true; userKeyCommand = [ "..." ]; apiTokenCommand = [ "..." ]; };
+    command = "...";                                    # arbitrary shell command, run with the message as $1
+  };
+};
+```
+
+`claude.enable` is a plain, generic `programs.claude-code.enable = true` - no Anduril gateway,
+no API key helper. A consumer with its own gateway-specific module (`mm.anduril.claude-code` in
+mm-nixos-anduril) should use that instead, not both: they both set
+`home-manager.users.<username>.programs.claude-code`, and NixOS does not know how to merge two
+different settings definitions that happen to collide on a key.
+
+`pi.enable` installs `pkgs.pi`, from upstream's own overlay (see `overlays/default.nix`). Pi has
+no documented hook or notification system as of writing (its README does not mention one, and
+docs.pi.dev was unreachable to check further), so notifications for Pi work differently from
+Claude: this wraps the `pi` binary and fires the notify command when the process exits. That
+covers "done", not "needs input partway through a session" - Claude's hooks cover both.
+
+Every notification backend can be turned on independently - enabling more than one fires all of
+them. `pushover.userKeyCommand`/`apiTokenCommand` are commands, not plain option values, so the
+credentials never land in the Nix store (the same reasoning as [secrets](#secrets-mmsecrets)
+below, and the same pattern as `mm.anduril.ai.bearerCommand` in mm-nixos-anduril). `ntfy.topic`
+is plain text by design - ntfy's own security model treats an unguessable topic name as the
+secret, not something to wrap in a command.
 
 ## home-manager (`homeManager`)
 

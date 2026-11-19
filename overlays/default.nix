@@ -26,6 +26,9 @@ let
   default = composeManyExtensions [
     localOverlays
     library
+    # Adds pkgs.pi. Upstream ships this overlay itself; reuse it instead of
+    # writing our own package derivation.
+    inputs.pi.overlays.default
   ];
 in
 {
