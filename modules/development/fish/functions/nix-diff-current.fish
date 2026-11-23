@@ -1,8 +1,7 @@
 function nix-diff-current
     set -l config $argv[1]
     if test -z "$config"
-        echo "Usage: nix-diff-current {nixos-configuration name}" >&2
-        return 2
+        set -l config (hostname)
     end
 
     nix-diff \
