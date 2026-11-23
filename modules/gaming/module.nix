@@ -27,7 +27,7 @@ in
 
       # Game Launchers
 
-      users.users.${cfg.username}.packages = with pkgs; [
+      users.users.${config.mm.user.username}.packages = with pkgs; [
         wine
         mangohud
         protonup-qt
