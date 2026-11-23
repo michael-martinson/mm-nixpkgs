@@ -3,6 +3,7 @@ function nix-diff-current
     set -e argv[1]
     if test -z "$config"
         set -l config (hostname)
+        echo "Using hostname for config: $config"
     end
 
     nix-diff \
