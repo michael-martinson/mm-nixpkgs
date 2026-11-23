@@ -18,6 +18,7 @@ let
     mkEnableOption
     mkOption
     types
+    mkMerge
     ;
   cfg = config.mm.dev.fish;
 in
@@ -31,12 +32,22 @@ in
       default = builtins.readFile ./fish-shell-init.fish;
       defaultText = lib.literalExpression "the contents of ./fish-shell-init.fish";
     };
+
+    useHomeManager = mkEnableOption "use home manager to set fish configs";
   };
 
-  config = mkIf cfg.enable {
-    programs.fish = {
-      enable = true;
-      shellInit = cfg.shellInit;
-    };
-  };
+  config = mkIf cfg.enable (mkMerge [
+    {
+      programs.fish = {
+        enable = true;
+        shellInit = cfg.shellInit;
+      };
+    }
+    (mkIf cfg.useHomeManager {
+      xdg.configFile."fish/functions".source = ./functions;
+    })
+    (mkIf (!cfg.useHomeManager) {
+
+    })
+  ]);
 }
