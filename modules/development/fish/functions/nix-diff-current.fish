@@ -7,5 +7,5 @@ function nix-diff-current
 
     nix-diff \
         (readlink /run/current-system) \
-        (nix build ".#nixosConfigurations.$config.config.system.build.toplevel" \ -v --print-out-paths)
+        (nix build ".#nixosConfigurations.$config.config.system.build.toplevel" -v --print-out-paths)
 end
