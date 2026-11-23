@@ -44,7 +44,7 @@ rec {
       jq
       wget
 
-      # neovim - LazyVim config set by mm.neovim
+      # neovim - LazyVim config set by mm.dev.neovim
       neovim
       # lazy vim deps
       fd

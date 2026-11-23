@@ -4,8 +4,8 @@
   not per-user, so there is no username here - anyone using fish on the
   machine gets this shellInit.
 
-  Standalone: set mm.fish.enable directly. Or let mm.user.enable turn this
-  on for you (mkDefault, so setting mm.fish.enable yourself still wins).
+  Standalone: set mm.dev.fish.enable directly. Or let mm.user.enable turn this
+  on for you (mkDefault, so setting mm.dev.fish.enable yourself still wins).
 */
 {
   config,
@@ -19,10 +19,10 @@ let
     mkOption
     types
     ;
-  cfg = config.mm.fish;
+  cfg = config.mm.dev.fish;
 in
 {
-  options.mm.fish = {
+  options.mm.dev.fish = {
     enable = mkEnableOption "the shared fish shell config";
 
     shellInit = mkOption {

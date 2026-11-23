@@ -5,7 +5,7 @@
   `default` to import every module.nix below this folder, at any depth.
 
   Each module sets its options under a path that matches its folder. For example,
-  modules/aws/module.nix owns mm.aws. A module must do nothing until it is
+  modules/aws/module.nix owns mm.dev.aws. A module must do nothing until it is
   enabled, so put its settings under `mkIf cfg.enable`.
 */
 inputs:

@@ -6,10 +6,10 @@
 }:
 let
   inherit (lib) mkIf mkEnableOption;
-  cfg = config.mm.aws;
+  cfg = config.mm.dev.aws;
 in
 {
-  options.mm.aws = {
+  options.mm.dev.aws = {
     enable = mkEnableOption "AWS tools";
   };
 

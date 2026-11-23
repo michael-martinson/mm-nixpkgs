@@ -107,8 +107,8 @@ in
       ];
 
       programs.direnv.enable = true;
-      mm.fish.enable = mkDefault true;
-      mm.neovim.enable = mkDefault true;
+      mm.dev.fish.enable = mkDefault true;
+      mm.dev.neovim.enable = mkDefault true;
       # This is required for treesitter to work in lazyvim
       programs.nix-ld.enable = true;
 

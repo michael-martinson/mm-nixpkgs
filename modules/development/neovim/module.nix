@@ -3,8 +3,8 @@
   package `pkgs.neovim` resolves to everywhere - via an overlay this module
   contributes itself, gated on enable, rather than one that always applies.
 
-  Standalone: set mm.neovim.enable directly. Or let mm.user.enable turn
-  this on for you (mkDefault, so setting mm.neovim.enable yourself still
+  Standalone: set mm.dev.neovim.enable directly. Or let mm.user.enable turn
+  this on for you (mkDefault, so setting mm.dev.neovim.enable yourself still
   wins).
 */
 {
@@ -19,10 +19,10 @@ let
     mkOption
     types
     ;
-  cfg = config.mm.neovim;
+  cfg = config.mm.dev.neovim;
 in
 {
-  options.mm.neovim = {
+  options.mm.dev.neovim = {
     enable = mkEnableOption "neovim with LazyVim and a custom Lua config";
 
     luaRC = mkOption {
