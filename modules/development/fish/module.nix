@@ -44,7 +44,9 @@ in
       };
     }
     (mkIf cfg.useHomeManager {
-      xdg.configFile."fish/functions".source = ./functions;
+      mm.user.homeManager.config = {
+        xdg.configFile."fish/functions".source = ./functions;
+      };
     })
     (mkIf (!cfg.useHomeManager) {
 

@@ -90,7 +90,7 @@ in
         default = null;
       };
 
-      extraConfig = mkOption {
+      config = mkOption {
         description = "Extra home-manager config, merged into home-manager.users.<username>. Use this to share a home structure, packages, dotfiles, and so on.";
         type = types.attrs;
         default = { };
@@ -140,7 +140,7 @@ in
               config.system.stateVersion
           );
         }
-        cfg.homeManager.extraConfig
+        cfg.homeManager.config
       ];
     })
   ]);
