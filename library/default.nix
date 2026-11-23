@@ -58,6 +58,7 @@ rec {
       # nix dev
       nixd
       nixfmt
+      nix-diff
 
       # rust dev
       rustc
@@ -122,4 +123,8 @@ rec {
         (lib.escapeShellArg notifications.command)
       ]
     );
+
+  shellAliases = {
+
+  };
 }
