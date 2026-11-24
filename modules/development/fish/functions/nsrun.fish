@@ -4,8 +4,8 @@ function nsrun
         return
     end
 
-    set -l pkgs $argv[1..-2]
-    set -l command $argv[(count $argv)]
+    set pkgs $argv[1..-2]
+    set command $argv[(count $argv)]
 
     nix-shell -p $pkgs --run $command
 end
