@@ -20,7 +20,10 @@ let
       builtins.attrNames (
         filterAttrs (
           f: t:
-          t == "regular" && f != "default.nix" && lib.hasSuffix ".nix" f && !(builtins.elem f disabledOverlays)
+          t == "regular"
+          && f != "default.nix"
+          && lib.hasSuffix ".nix" f
+          && !(builtins.elem f disabledOverlays)
         ) (builtins.readDir ./.)
       )
     )
@@ -28,15 +31,18 @@ let
 
   # Exposes every ../packages/<name>/package.nix as pkgs.<name> - add a
   # package by adding a folder, nothing to wire up here.
-  packages = final: _prev: lib.filesystem.packagesFromDirectoryRecursive {
-    callPackage = final.callPackage;
-    directory = ../packages;
-  };
+  packages =
+    final: _prev:
+    lib.filesystem.packagesFromDirectoryRecursive {
+      callPackage = final.callPackage;
+      directory = ../packages;
+    };
 
   default = composeManyExtensions [
     localOverlays
     library
     packages
+    inputs.pi.overlays.default
   ];
 in
 {
