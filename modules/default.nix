@@ -13,13 +13,16 @@ let
   inherit (inputs.nixpkgs) lib;
   inherit (lib.attrsets) filterAttrs;
 
-  topLevelModules = lib.genAttrs (
-    builtins.attrNames (filterAttrs (name: type: type == "directory") (builtins.readDir ./.))
-  ) (name: import ./${name}/module.nix);
+  topLevelModules = lib.genAttrs (builtins.attrNames (
+    filterAttrs (name: type: type == "directory") (builtins.readDir ./.)
+  )) (name: import ./${name}/module.nix);
 in
 topLevelModules
 // {
   default = {
-    imports = inputs.self.library.modulesFromDirectoryRecursive ./.;
+    imports = (inputs.self.library.modulesFromDirectoryRecursive ./.) // {
+      homeManager = inputs.home-manager.nixosModules.home-manager;
+      sops-nix = inputs.sops-nix.nixosModules.default;
+    };
   };
 }

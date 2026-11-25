@@ -26,11 +26,6 @@
     devShells = import ./dev-shells inputs;
     legacyPackages = import ./legacy-packages inputs;
     overlays = import ./overlays inputs;
-    nixosModules = (import ./modules inputs) // {
-      # Re-exported so a consumer does not need its own home-manager input
-      # just to use this. Not turned on by anything else here.
-      homeManager = inputs.home-manager.nixosModules.home-manager;
-      sops-nix = inputs.sops-nix.nixosModules.default;
-    };
+    nixosModules = (import ./modules inputs);
   };
 }
