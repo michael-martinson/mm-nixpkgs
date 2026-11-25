@@ -9,6 +9,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     pi = {
       url = "github:earendil-works/pi";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -25,6 +30,7 @@
       # Re-exported so a consumer does not need its own home-manager input
       # just to use this. Not turned on by anything else here.
       homeManager = inputs.home-manager.nixosModules.home-manager;
+      sops-nix = inputs.sops-nix.nixosModules.default;
     };
   };
 }
