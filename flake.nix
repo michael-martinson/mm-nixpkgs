@@ -2,7 +2,7 @@
   description = "Michael Martinson's common Nix library, overlays, and modules";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs?ref=26.05";
 
     home-manager = {
       url = "github:nix-community/home-manager?ref=release-26.05";

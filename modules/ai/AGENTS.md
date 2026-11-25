@@ -93,7 +93,3 @@ Write design docs and implementation plans to `~/.ai/designs/<repo-name>/<design
 - Keep PR descriptions concise: problem, fix, testing -- skip narrating the investigation process, dead ends, or exploratory back-and-forth
 - **NEVER push to remote without explicit user approval**
 - Never run destructive git operations (force push, hard reset, history rewrite, deleting unmerged branches) without explicit user approval
-
-### Nix
-
-- Use orbstack for nix development
