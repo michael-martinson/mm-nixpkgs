@@ -33,7 +33,7 @@ in
         # You can avoid this by adding a string to the full path instead, i.e.
         # sops.defaultSopsFile = "/root/.sops/secrets/example.yaml";
         defaultSopsFile = cfg.sops-file;
-        age.sshKeyPaths = cfg.sshKeyPahts;
+        age.sshKeyPaths = cfg.sshKeyPaths;
         secrets = genAttrs cfg.keys (_: { });
       };
     }
