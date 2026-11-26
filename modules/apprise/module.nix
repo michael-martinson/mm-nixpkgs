@@ -40,7 +40,7 @@ in
         apprise
       ];
 
-      templates."apprise-config" = {
+      sops.templates."apprise-config" = {
         owner = cfg.user;
         path = "${config.users.users.${cfg.user}.home}/.apprise.yaml";
         content = builtins.toJSON {
