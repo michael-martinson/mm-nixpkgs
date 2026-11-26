@@ -22,14 +22,14 @@ in
       default = config.defaults.primaryUser;
     };
     urls = mkOption {
-      type = listOf submodule {
+      type = listOf (submodule {
         url = mkOption {
           type = str;
         };
         tags = mkOption {
           type = listOf str;
         };
-      };
+      });
       description = "List of apprise to use from ${cfg.sops-file}";
     };
   };
