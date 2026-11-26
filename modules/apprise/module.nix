@@ -23,11 +23,13 @@ in
     };
     urls = mkOption {
       type = listOf (submodule {
-        url = mkOption {
-          type = str;
-        };
-        tags = mkOption {
-          type = listOf str;
+        options = {
+          url = mkOption {
+            type = str;
+          };
+          tags = mkOption {
+            type = listOf str;
+          };
         };
       });
       description = "List of apprise to use from ${cfg.sops-file}";
