@@ -17,6 +17,9 @@ in
       type = path;
       description = "The sops file containing your secrets";
     };
+    sshKeyPaths = mkOption {
+      type = listOf str;
+    };
     keys = mkOption {
       type = listOf str;
       description = "List of secrets to use from ${cfg.sops-file}";
@@ -30,8 +33,7 @@ in
         # You can avoid this by adding a string to the full path instead, i.e.
         # sops.defaultSopsFile = "/root/.sops/secrets/example.yaml";
         defaultSopsFile = cfg.sops-file;
-        # This will automatically import SSH keys as age keys
-        age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+        age.sshKeyPaths = cfg.sshKeyPahts;
         secrets = genAttrs cfg.keys (_: { });
       };
     }
