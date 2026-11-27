@@ -59,7 +59,7 @@ in
         with pkgs;
         (defaultShellPackages pkgs)
         ++ [
-          cmux
+          wezterm
           bitwarden-desktop
           inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
           nextcloud-client
