@@ -64,7 +64,10 @@ in
           bitwarden-desktop
           inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
           nextcloud-client
-          hunspell # used for spellcheck with libreoffice
+
+          libreoffice
+          hunspell
+          hunspellDicts.en_US
         ];
     };
 

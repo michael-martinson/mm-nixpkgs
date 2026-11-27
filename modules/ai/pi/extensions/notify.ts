@@ -1,7 +1,7 @@
 import { exec } from "node:child_process";
 
 function notify(message: string): void {
-  exec(`apprise -b ${message} --tag="pi"`, () => {});
+  exec(`apprise -b ${message} --tag pi`, () => {});
 }
 
 export default function (pi: any) {
