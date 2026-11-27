@@ -12,7 +12,6 @@ let
     mkOption
     types
     ;
-  inherit (pkgs.myLibrary) notificationOptions;
   cfg = config.mm.ai;
 in
 {
