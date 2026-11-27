@@ -33,7 +33,6 @@ in
         protonup-qt
         bottles
         heroic
-        discord
       ];
 
       programs = {

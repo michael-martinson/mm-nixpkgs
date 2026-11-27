@@ -64,6 +64,7 @@ in
           bitwarden-desktop
           inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
           nextcloud-client
+          discord
 
           libreoffice
           hunspell
