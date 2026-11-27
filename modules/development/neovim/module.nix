@@ -10,6 +10,7 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 let
@@ -50,5 +51,16 @@ in
     ];
 
     environment.variables.EDITOR = "nvim";
+
+    # This is required for treesitter to work in lazyvim
+    programs.nix-ld.enable = true;
+
+    # Fonts for neovim
+    fonts.packages = with pkgs; [
+      nerd-fonts.jetbrains-mono
+      nerd-fonts.fira-code
+      nerd-fonts.agave
+    ];
+
   };
 }

@@ -1,23 +1,3 @@
-/*
-  A common desktop user: the account itself, fonts, fish, neovim, direnv,
-  nix-ld, git identity, and the shared dev tool list. One user per
-  machine, name set by `username`:
-
-    mm.user = {
-      enable = true;
-      username = "mmartinson";
-      email = "mmartinson@example.com";
-    };
-
-  Optionally also a home-manager profile for that user. This needs the
-  home-manager NixOS module imported (for example
-  inputs.mm-nixpkgs.nixosModules.homeManager):
-
-    mm.user.homeManager = {
-      enable = true;
-      extraConfig.home.packages = [ ... ];
-    };
-*/
 {
   config,
   lib,
@@ -73,25 +53,29 @@ in
     };
 
     packages = mkOption {
-      description = "Extra system packages for this user, on top of defaultShellPackages.";
+      description = "System packages for this user.";
       type = types.listOf types.package;
-      default = [ ];
+      default =
+        with pkgs;
+        (defaultShellPackages pkgs)
+        ++ [
+          cmux
+          bitwarden-desktop
+          inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
+          nextcloud-client
+          hunspell # used for spellcheck with libreoffice
+        ];
     };
 
     homeManager = {
       enable = mkEnableOption "a home-manager profile for this user";
-
-      # No default here: deferring to config.system.stateVersion as a default
-      # has to happen in `config` below, not in the option declaration, or
-      # the module system deadlocks on itself.
       stateVersion = mkOption {
         description = "home.stateVersion for this user. Defaults to config.system.stateVersion.";
         type = types.nullOr types.str;
         default = null;
       };
-
       config = mkOption {
-        description = "Extra home-manager config, merged into home-manager.users.<username>. Use this to share a home structure, packages, dotfiles, and so on.";
+        description = "home-manager config, merged into home-manager.users.<username>.";
         type = types.attrs;
         default = { };
       };
@@ -100,18 +84,16 @@ in
 
   config = mkIf cfg.enable (mkMerge [
     {
-      fonts.packages = with pkgs; [
-        nerd-fonts.jetbrains-mono
-        nerd-fonts.fira-code
-        nerd-fonts.agave
-      ];
+      # Nix settings
+      nix = {
+        settings.experimental-features = [
+          "nix-command"
+          "flakes"
+        ];
+      };
+      nixpkgs.config.allowUnfree = true;
 
-      programs.direnv.enable = true;
-      mm.dev.fish.enable = mkDefault true;
-      mm.dev.neovim.enable = mkDefault true;
-      # This is required for treesitter to work in lazyvim
-      programs.nix-ld.enable = true;
-
+      # User setup
       users.users.${cfg.username} = {
         isNormalUser = true;
         description = cfg.fullName;
@@ -120,12 +102,30 @@ in
         packages = cfg.packages ++ (defaultShellPackages pkgs);
       };
 
+      # Dev setup
+      mm.dev = {
+        fish = {
+          enable = mkDefault true;
+          useHomeManager = mkDefault cfg.homeManager.enable;
+        };
+        neovim.enable = mkDefault true;
+        aws.enable = mkDefault true;
+      };
+
+      programs.direnv.enable = true;
+
       programs.git = {
         enable = true;
         config.user = {
           email = cfg.email;
           name = cfg.gitUserName;
         };
+      };
+
+      ai = {
+        enable = true;
+        username = cfg.username;
+        pi.enable = true;
       };
     }
     (mkIf cfg.homeManager.enable {
