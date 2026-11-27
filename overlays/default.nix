@@ -41,7 +41,7 @@ let
   default = composeManyExtensions [
     localOverlays
     library
-    packages
+    # packages - enable when we add another package
     inputs.pi.overlays.default
   ];
 in
