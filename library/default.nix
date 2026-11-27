@@ -42,6 +42,7 @@ rec {
       tree
       jq
       wget
+      dig
 
       # neovim - LazyVim config set by mm.dev.neovim
       neovim
