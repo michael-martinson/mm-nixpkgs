@@ -122,7 +122,7 @@ in
         };
       };
 
-      ai = {
+      mm.ai = {
         enable = true;
         username = cfg.username;
         pi.enable = true;
