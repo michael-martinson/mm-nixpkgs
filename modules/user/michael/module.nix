@@ -28,22 +28,22 @@ in
         gitUserName = "micmar.23";
         homeManager.enable = true;
       };
-    };
 
-    apprise = {
-      enable = true;
-      user = username;
-      urls =
-        [ ]
-        ++ lib.optionals (builtins.hasAttr "discord_webhook" config.sops.secrets) [
-          {
-            url = config.sops.placeholder.discord_webhook;
-            tags = [
-              "discord"
-              "pi"
-            ];
-          }
-        ];
+      apprise = {
+        enable = true;
+        user = username;
+        urls =
+          [ ]
+          ++ lib.optionals (builtins.hasAttr "discord_webhook" config.sops.secrets) [
+            {
+              url = config.sops.placeholder.discord_webhook;
+              tags = [
+                "discord"
+                "pi"
+              ];
+            }
+          ];
+      };
     };
   };
 }
